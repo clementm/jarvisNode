@@ -1,5 +1,26 @@
 'use strict'
 
+'use strict';
+
+var os = require('os');
+var child_process = require('child_process')
+var ifaces = os.networkInterfaces();
+
+function Init() {
+for(var i=0; i<Object.keys(ifaces).length; i++) {
+  var cle = Object.keys(ifaces)[i];
+  for (var j=0; j<ifaces[cle].length;j++) {
+    var famille = ifaces[cle][j];
+    if(famille.family == "IPv4" && famille.internal == false) {
+      return(famille.address);
+    }
+  }
+}
+}
+
+console.log(Init() +':3000');
+child_process.exec('explorenfc-cardemulation -t "'+ Init() +':3000"',function(error){console.log(error)})
+
 const express = require('express');
 
 const app = express();
@@ -16,12 +37,16 @@ app.use(require('express-session')({ secret: 'keyboard cat', resave: true, saveU
 
 function buildSchedule (nextEvent, todos) {
     let availableMin = nextEvent.moment_date.diff(moment(), 'minutes');
-
-    if (moment().isSame(nextEvent.moment_date, 'day')) {
+    console.log(availableMin);
+    console.log(moment());
+    console.log(nextEvent);
+    if (!moment().isSame(nextEvent.moment_date, 'day')) {
         availableMin -= 5*60;
     }
+    //console.log(availableMin);
 
-    let maxTaskCount = (availableMin - 30)/todos.length;
+    let maxTaskCount = (availableMin - 30)/20;
+    console.log(maxTaskCount);
 
     let schedule = [{
         type: 0,
@@ -53,15 +78,16 @@ function buildSchedule (nextEvent, todos) {
 app.post('/api/schedule', (req, res, next) => {
     let limit = moment().endOf('day').add(1, 'day');
 
-    let { todos, events } = req.body;
+    let todos = req.body.todos;
+    let events = req.body.events;
 
     todos = todos.map(todo => {
         if (todo.due_date_utc) {
             todo.moment_date = moment(todo.due_date_utc);
             todo.days_late = - todo.moment_date.diff(limit, 'days');
-            todo.weight = (4-todo.priority) * (todo.days_late + 1);
+            todo.weight = (todo.priority) * (todo.days_late + 1);
         } else {
-            todo.weight = (4-todo.priority);
+            todo.weight = (todo.priority);
         }
         return todo;
     })
